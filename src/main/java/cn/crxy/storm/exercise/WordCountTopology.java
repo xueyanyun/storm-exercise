@@ -11,6 +11,10 @@ import java.util.Random;
 
 import org.apache.commons.io.FileUtils;
 
+
+
+import com.lmax.disruptor.SleepingWaitStrategy;
+
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.spout.SpoutOutputCollector;
@@ -51,29 +55,66 @@ public class WordCountTopology
 		/**
 		 * 认为heartbeat，永无休息，死循环的调用。线程安全的操作。
 		 */
-		public void nextTuple() {
-			//读取目标文件夹中新产生的文件(们)
-			Collection<File> listFiles = FileUtils.listFiles(new File("D:\\test"), new String[]{"txt"}, true);
-			//把每个文件中的每一行解析出来
-			for (File file : listFiles) {
-				try {
-					List<String> lines = FileUtils.readLines(file);
-					//把每一行发射出去
-					for (String line : lines) {
-						this.collector.emit(new Values(line));
-					}
-					FileUtils.moveFile(file, new File(file.getAbsolutePath()+"."+System.currentTimeMillis()));
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				
-			}
-		}
+//		public void nextTuple() {
+//			//读取目标文件夹中新产生的文件(们)
+//			Collection<File> listFiles = FileUtils.listFiles(new File("D:\\test"), new String[]{"txt"}, true);
+//			//把每个文件中的每一行解析出来
+//			for (File file : listFiles) {
+//				try {
+//					List<String> lines = FileUtils.readLines(file);
+//					//把每一行发射出去
+//					for (String line : lines) {
+//						this.collector.emit(new Values(line));
+//					}
+//					FileUtils.moveFile(file, new File(file.getAbsolutePath()+"."+System.currentTimeMillis()));
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				}
+//				
+//			}
+//		}
 
+		
+		
+		int i = 0;
+		
+		public void nextTuple() {
+			
+			collector.emit( new Values(i),i);
+			
+			collector.emit( new Values(i),i);
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		
+			
+		}
 
 		public void declareOutputFields(OutputFieldsDeclarer declarer) {
 			//Fields是一个field的List
 			declarer.declare(new Fields("line"));
+		}
+		
+		
+		@Override
+		public void ack(Object msgId) {
+//			// TODO Auto-generated method stub
+//			super.ack(msgId);
+			System.err.println("ack beg");
+			System.err.println("ack" + msgId);
+			
+			System.err.println("ack end");
+		}
+		
+		@Override
+		public void fail(Object msgId) {
+			// TODO Auto-generated method stub
+			System.err.println("fail beg");
+			System.err.println("fail"+  msgId);
+			System.err.println("fail end");
 		}
 	}
 	
@@ -91,15 +132,28 @@ public class WordCountTopology
 		/**
 		 * 拆分每一行单词
 		 */
+//		public void execute(Tuple tuple) {
+//			//读取tuple
+//			String line = tuple.getStringByField("line");
+//			//拆分每一行，得到一个个单词
+//			String[] words = line.split("\\s");
+//			//把单词发射出去
+//			for (String word : words) {
+//				this.collector.emit(new Values(word));
+//			}
+//		}
+		
+		
 		public void execute(Tuple tuple) {
-			//读取tuple
-			String line = tuple.getStringByField("line");
-			//拆分每一行，得到一个个单词
-			String[] words = line.split("\\s");
-			//把单词发射出去
-			for (String word : words) {
-				this.collector.emit(new Values(word));
+			Long value = tuple.getLongByField("line");
+			if (value % 2 == 0) {
+				collector.ack(tuple);
+				
+			}else {
+				collector.fail(tuple);
 			}
+
+
 		}
 
 		public void declareOutputFields(OutputFieldsDeclarer declarer) {
